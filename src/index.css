@@ -1,0 +1,329 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* ========================================================= */
+/* ESTILOS DE BOLETÍN Y REPORTE FÍSICO MINERD (11 x 8.5 IN) */
+/* ========================================================= */
+
+.sheet {
+  background-color: white;
+  width: 11in;
+  min-height: 8.5in;
+  max-height: 8.5in;
+  padding: 0.35in 0.4in;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55in;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  font-family: 'Roboto', sans-serif;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  position: relative;
+}
+
+/* Tablas de Evaluación de Alta Densidad MINERD */
+.eval-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8.5px;
+  border: 1.5px solid #000;
+  table-layout: fixed;
+}
+
+.eval-table th,
+.eval-table td {
+  border: 1px solid #444;
+  padding: 1.5px 2px;
+  vertical-align: middle;
+  line-height: 1.1;
+}
+
+.eval-table thead th {
+  background-color: #fff;
+  text-align: center;
+  font-weight: bold;
+  padding: 2px 0;
+  font-size: 8px;
+}
+
+/* Encabezados Verticales Rotados a -90 Grados */
+.rotated-header {
+  height: 48px;
+  white-space: nowrap;
+  position: relative;
+  width: 13px;
+  padding: 0 !important;
+}
+
+.rotated-header span {
+  display: block;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  width: 100%;
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  text-align: left;
+  padding-left: 2px;
+  font-size: 7px;
+  font-weight: 700;
+}
+
+.col-indicator {
+  text-align: left;
+  width: auto;
+  font-size: 8px;
+  padding-left: 3px !important;
+}
+
+.col-check {
+  width: 13px;
+  text-align: center;
+  font-size: 8px;
+  padding: 0 !important;
+}
+
+/* Separadores de Dominio Curricular */
+.domain-header {
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 8px;
+  text-align: left;
+  padding: 2px 4px !important;
+  border-top: 1.5px solid #4b5563;
+}
+
+/* Portada y Filas de Datos */
+.compact-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 4px;
+  font-size: 11px;
+  border-bottom: 1px dotted #94a3b8;
+}
+
+.compact-label {
+  font-weight: 700;
+  color: #1e293b;
+  min-width: 85px;
+  font-size: 11px;
+}
+
+.compact-value {
+  font-weight: 500;
+  color: #000;
+  padding-left: 2px;
+  font-size: 11px;
+}
+
+.photo-placeholder {
+  width: 95px;
+  height: 115px;
+  border: 1px dashed #64748b;
+  background-color: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 9.5px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.obs-box {
+  border: 1px solid #000;
+  padding: 4px;
+  font-size: 9px;
+  display: flex;
+  flex-direction: column;
+}
+
+.family-note {
+  font-size: 9.5px;
+  text-align: justify;
+  color: #334155;
+  padding: 8px 10px;
+  border-radius: 4px;
+  line-height: 1.35;
+}
+
+/* ========================================================= */
+/* AJUSTES ADAPTATIVOS DE FUENTE SEGÚN ESPACIO VERTICAL      */
+/* ========================================================= */
+
+/* Prekínder: Menos indicadores y sin tabla en contraportada -> Mayor tamaño */
+.grade-prekinder .col-indicator {
+  font-size: 9.5px !important;
+  line-height: 1.25 !important;
+  padding: 2.5px 3px !important;
+}
+
+.grade-prekinder .domain-header {
+  font-size: 9.5px !important;
+  padding: 3px 4px !important;
+}
+
+.grade-prekinder .eval-table th,
+.grade-prekinder .eval-table td {
+  padding: 2.5px 2px;
+}
+
+.grade-prekinder .obs-box {
+  padding: 6px;
+  font-size: 10px;
+}
+
+.grade-prekinder .obs-box p {
+  font-size: 10px !important;
+  line-height: 1.35 !important;
+}
+
+.grade-prekinder .obs-box span {
+  font-size: 9.5px !important;
+}
+
+.grade-prekinder .contraportada-attendance {
+  font-size: 9.5px !important;
+  padding: 4px 6px !important;
+}
+
+.grade-prekinder .contraportada-note {
+  font-size: 9.5px !important;
+}
+
+/* Kínder: Panel derecho con solo 19 indicadores -> Mayor tamaño */
+.grade-kinder .panel-interior-right .col-indicator {
+  font-size: 9.5px !important;
+  line-height: 1.25 !important;
+  padding: 2.5px 3px !important;
+}
+
+.grade-kinder .panel-interior-right .domain-header {
+  font-size: 9.5px !important;
+}
+
+.grade-kinder .panel-interior-right .eval-table td {
+  padding: 2.5px 2px;
+}
+
+/* Preprimario: Panel derecho con solo 20 indicadores -> Mayor tamaño */
+.grade-preprimario .panel-interior-right .col-indicator {
+  font-size: 9px !important;
+  line-height: 1.2 !important;
+  padding: 2px 3px !important;
+}
+
+.grade-preprimario .panel-interior-right .domain-header {
+  font-size: 9px !important;
+}
+
+/* Barra Lateral de Ámbito */
+.ambito-container {
+  display: flex;
+  height: 100%;
+  border: 1.5px solid #000;
+  overflow: hidden;
+}
+
+.ambito-sidebar {
+  width: 18px;
+  background-color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #000;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.ambito-text {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 8px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.table-wrapper {
+  flex-grow: 1;
+}
+
+/* ========================================================= */
+/* REGLAS DE IMPRESIÓN Y DESCARGA PDF (@media print)         */
+/* ========================================================= */
+
+@media print {
+  @page {
+    size: 11in 8.5in landscape;
+    margin: 0mm !important;
+  }
+
+  *, *:before, *:after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background-color: white !important;
+    width: 11in !important;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Eliminación estricta de márgenes y paddings de contenedores padres para evitar páginas en blanco */
+  main,
+  div:has(> .report-card-viewport),
+  .report-card-viewport,
+  .report-card-print-container {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+    width: 11in !important;
+    display: block !important;
+  }
+
+  .no-print, header, nav, footer {
+    display: none !important;
+  }
+
+  .sheet {
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0.3in 0.35in !important;
+    width: 11in !important;
+    height: 8.5in !important;
+    min-height: 8.5in !important;
+    max-height: 8.5in !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: page !important;
+    break-after: page !important;
+  }
+
+  /* Evitar página en blanco al final del documento */
+  .report-card-print-container:last-child .sheet:last-child,
+  .sheet:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+}

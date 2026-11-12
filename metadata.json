@@ -1,0 +1,6 @@
+{
+  "name": "MINERD Evaluación Inicial - P1, P2 y P3",
+  "description": "Sistema de Evaluación Periódica en Tres Períodos (P1, P2, P3) del Nivel Inicial según normativas MINERD de la República Dominicana con registro ágil, panel directivo de supervisión, boletines oficiales descargables e informes técnicos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

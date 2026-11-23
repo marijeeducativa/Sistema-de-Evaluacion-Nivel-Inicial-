@@ -5,6 +5,7 @@ import {
   EvaluationPeriod 
 } from '../types';
 import { getIndicatorsByGrade } from '../data/minerdCurriculum';
+import { computeSectionPeriodMetrics } from '../utils/evaluationProgress';
 import { 
   AlertTriangle, 
   CheckCircle2, 
@@ -42,6 +43,7 @@ interface DashboardProps {
   onNavigateToMatrix: () => void;
   onNavigateToObservations: () => void;
   onNavigateToBulletin: () => void;
+  onNavigateToReports?: (mode?: 'section' | 'general') => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -49,7 +51,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onSelectSection,
   onNavigateToMatrix,
   onNavigateToObservations,
-  onNavigateToBulletin
+  onNavigateToBulletin,
+  onNavigateToReports
 }) => {
   const currentPeriod = state.currentPeriod;
 
@@ -65,77 +68,36 @@ export const Dashboard: React.FC<DashboardProps> = ({
     const list: any[] = [];
 
     grades.forEach(grade => {
-      const indicators = getIndicatorsByGrade(grade);
-      const totalIndicators = indicators.length;
-
       sections.forEach(sec => {
         const students = state.students.filter(s => s.grade === grade && s.section === sec);
         if (students.length === 0) return;
 
         const teacher = state.teachers.find(t => t.grade === grade && t.section === sec);
-
-        let totalExpectedScores = students.length * totalIndicators;
-        let filledScores = 0;
-        let countL = 0;
-        let countEP = 0;
-        let countI = 0;
-        let bulletinsReady = 0;
-        let observationsComplete = 0;
-
-        students.forEach(st => {
-          const evalRec = state.evaluations[st.id]?.[currentPeriod];
-          if (!evalRec) return;
-
-          const scores = evalRec.scores || {};
-          let studentFilled = 0;
-
-          indicators.forEach(ind => {
-            const v = scores[ind.id];
-            if (v) {
-              filledScores++;
-              studentFilled++;
-              if (v === 'L') countL++;
-              else if (v === 'EP') countEP++;
-              else if (v === 'I') countI++;
-            }
-          });
-
-          const hasStrengths = !!evalRec.observations.strengths.trim();
-          const hasRecs = !!evalRec.observations.recommendations.trim();
-          if (hasStrengths && hasRecs) {
-            observationsComplete++;
-          }
-
-          if (studentFilled === totalIndicators && hasStrengths && hasRecs) {
-            bulletinsReady++;
-          }
-        });
-
-        const progressPercent = totalExpectedScores > 0 
-          ? Math.round((filledScores / totalExpectedScores) * 100) 
-          : 0;
-
-        const isLagging = progressPercent < 50;
+        const metrics = computeSectionPeriodMetrics(students, state.evaluations, grade, currentPeriod);
+        const isLagging = metrics.progressPercent < 50;
 
         list.push({
           grade,
           section: sec,
           teacherName: teacher?.name || 'Docente sin asignar',
           studentsCount: students.length,
-          totalIndicators,
-          progressPercent,
-          filledScores,
-          totalExpectedScores,
-          countL,
-          countEP,
-          countI,
-          percentL: filledScores > 0 ? Math.round((countL / filledScores) * 100) : 0,
-          percentEP: filledScores > 0 ? Math.round((countEP / filledScores) * 100) : 0,
-          percentI: filledScores > 0 ? Math.round((countI / filledScores) * 100) : 0,
-          observationsComplete,
-          observationsPending: students.length - observationsComplete,
-          bulletinsReady,
-          bulletinsPending: students.length - bulletinsReady,
+          totalIndicators: metrics.totalCurriculumIndicators,
+          workedIndicatorsCount: metrics.workedIndicatorsCount,
+          hasStartedSection: metrics.hasStartedSection,
+          progressPercent: metrics.progressPercent,
+          filledScores: metrics.filledScores,
+          cappedFilledScores: metrics.cappedFilledScores,
+          totalExpectedScores: metrics.totalExpectedScores,
+          countL: metrics.countL,
+          countEP: metrics.countEP,
+          countI: metrics.countI,
+          percentL: metrics.percentL,
+          percentEP: metrics.percentEP,
+          percentI: metrics.percentI,
+          observationsComplete: metrics.observationsCompleteCount,
+          observationsPending: metrics.observationsPendingCount,
+          bulletinsReady: metrics.readyBulletinsCount,
+          bulletinsPending: metrics.pendingBulletinsCount,
           isLagging
         });
       });
@@ -148,6 +110,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const globalSummary = useMemo(() => {
     let totalStudents = state.students.length;
     let totalExpected = 0;
+    let totalCappedFilled = 0;
     let totalFilled = 0;
     let totalL = 0;
     let totalEP = 0;
@@ -158,6 +121,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
     sectionStats.forEach(sec => {
       totalExpected += sec.totalExpectedScores;
+      totalCappedFilled += sec.cappedFilledScores;
       totalFilled += sec.filledScores;
       totalL += sec.countL;
       totalEP += sec.countEP;
@@ -167,7 +131,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       if (sec.isLagging) laggingSectionsCount++;
     });
 
-    const globalProgress = totalExpected > 0 ? Math.round((totalFilled / totalExpected) * 100) : 0;
+    const globalProgress = totalExpected > 0 ? Math.min(100, Math.round((totalCappedFilled / totalExpected) * 100)) : 0;
     const globalPercentL = totalFilled > 0 ? Math.round((totalL / totalFilled) * 100) : 0;
     const globalPercentEP = totalFilled > 0 ? Math.round((totalEP / totalFilled) * 100) : 0;
     const globalPercentI = totalFilled > 0 ? Math.round((totalI / totalFilled) * 100) : 0;
@@ -316,19 +280,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </p>
         </div>
 
-        {globalSummary.laggingSectionsCount > 0 ? (
-          <div className="flex items-center gap-2 bg-amber-50 text-amber-900 border border-amber-200 px-3.5 py-2 rounded-lg text-xs font-medium">
-            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>
-              <strong>Alerta:</strong> {globalSummary.laggingSectionsCount} sección(es) con avance menor al 50% en {currentPeriod}.
-            </span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 bg-emerald-50 text-emerald-900 border border-emerald-200 px-3.5 py-2 rounded-lg text-xs font-medium">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>Todas las secciones presentan un ritmo de avance favorable.</span>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {globalSummary.laggingSectionsCount > 0 ? (
+            <div className="flex items-center gap-2 bg-amber-50 text-amber-900 border border-amber-200 px-3.5 py-2 rounded-lg text-xs font-medium">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                <strong>Alerta:</strong> {globalSummary.laggingSectionsCount} sección(es) con avance menor al 50% en {currentPeriod}.
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-900 border border-emerald-200 px-3.5 py-2 rounded-lg text-xs font-medium">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Todas las secciones presentan un ritmo de avance favorable.</span>
+            </div>
+          )}
+
+          {onNavigateToReports && (
+            <button
+              onClick={() => onNavigateToReports('general')}
+              className="px-3.5 py-2 rounded-lg bg-[#0b1b3d] hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors whitespace-nowrap cursor-pointer"
+            >
+              <BarChart3 className="w-4 h-4 text-amber-300" />
+              <span>Reporte Analítico General (PDF)</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Global Metrics Cards Grid */}
@@ -845,7 +821,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       {item.grade} · Sección {item.section}
                     </div>
                     <span className="text-[11px] text-slate-400">
-                      {item.totalIndicators} indicadores evaluados
+                      {item.hasStartedSection && item.workedIndicatorsCount < item.totalIndicators
+                        ? `${item.workedIndicatorsCount} de ${item.totalIndicators} ind. trabajados en ${currentPeriod}`
+                        : `${item.totalIndicators} indicadores del grado`}
                     </span>
                   </td>
 

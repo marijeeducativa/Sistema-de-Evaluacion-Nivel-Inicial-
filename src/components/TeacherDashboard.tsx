@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { AppState, AppUser, GradeLevel, EvaluationPeriod, Student } from '../types';
-import { getIndicatorsByGrade } from '../data/minerdCurriculum';
+import { AppState, AppUser } from '../types';
+import { computeSectionPeriodMetrics } from '../utils/evaluationProgress';
 import { 
   Sparkles, 
   AlertTriangle, 
@@ -20,7 +20,7 @@ import {
   ShieldCheck,
   Calendar,
   HeartHandshake,
-  Award
+  BarChart3
 } from 'lucide-react';
 
 interface TeacherDashboardProps {
@@ -29,6 +29,7 @@ interface TeacherDashboardProps {
   onNavigateToMatrix: () => void;
   onNavigateToObservations: () => void;
   onNavigateToBulletin: (studentId?: string) => void;
+  onNavigateToReports?: () => void;
   onExportExcel: () => void;
 }
 
@@ -38,14 +39,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   onNavigateToMatrix,
   onNavigateToObservations,
   onNavigateToBulletin,
+  onNavigateToReports,
   onExportExcel
 }) => {
   const currentPeriod = state.currentPeriod;
   const grade = currentUser.grade || state.selectedGrade;
   const section = currentUser.section || state.selectedSection;
-  const indicators = useMemo(() => getIndicatorsByGrade(grade), [grade]);
-  const totalIndicators = indicators.length;
-
   const [studentSearch, setStudentSearch] = useState('');
   const [filterPendingOnly, setFilterPendingOnly] = useState<'all' | 'pending-eval' | 'pending-obs' | 'complete'>('all');
 
@@ -54,69 +53,25 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     return state.students.filter(s => s.grade === grade && s.section === section);
   }, [state.students, grade, section]);
 
-  // Compute metrics for each student and for the whole section
-  const studentMetrics = useMemo(() => {
-    return sectionStudents.map(student => {
-      const evalRec = state.evaluations[student.id]?.[currentPeriod];
-      const scores = evalRec?.scores || {};
-      
-      let scoredCount = 0;
-      let countL = 0;
-      let countEP = 0;
-      let countI = 0;
+  // Unified section & student metrics using period-worked indicators
+  const sectionMetrics = useMemo(() => {
+    return computeSectionPeriodMetrics(sectionStudents, state.evaluations, grade, currentPeriod);
+  }, [sectionStudents, state.evaluations, grade, currentPeriod]);
 
-      indicators.forEach(ind => {
-        const val = scores[ind.id];
-        if (val) {
-          scoredCount++;
-          if (val === 'L') countL++;
-          else if (val === 'EP') countEP++;
-          else if (val === 'I') countI++;
-        }
-      });
+  const totalIndicators = sectionMetrics.totalCurriculumIndicators;
+  const workedIndicatorsCount = sectionMetrics.workedIndicatorsCount;
+  const studentMetrics = sectionMetrics.studentMetrics;
 
-      const strengths = evalRec?.observations?.strengths?.trim() || '';
-      const recommendations = evalRec?.observations?.recommendations?.trim() || '';
-      const hasObservations = strengths.length > 0 && recommendations.length > 0;
-      const isEvaluationComplete = scoredCount === totalIndicators && totalIndicators > 0;
-      const isFullyReady = isEvaluationComplete && hasObservations;
-
-      return {
-        student,
-        scoredCount,
-        totalIndicators,
-        evalPercentage: totalIndicators > 0 ? Math.round((scoredCount / totalIndicators) * 100) : 0,
-        isEvaluationComplete,
-        hasObservations,
-        strengths,
-        recommendations,
-        isFullyReady,
-        countL,
-        countEP,
-        countI
-      };
-    });
-  }, [sectionStudents, state.evaluations, currentPeriod, indicators, totalIndicators]);
-
-  // Overall section stats
   const stats = useMemo(() => {
-    const totalStudents = studentMetrics.length;
-    const completedEvals = studentMetrics.filter(m => m.isEvaluationComplete).length;
-    const pendingEvals = totalStudents - completedEvals;
-    
-    const completedObs = studentMetrics.filter(m => m.hasObservations).length;
-    const pendingObs = totalStudents - completedObs;
-
-    const readyBulletins = studentMetrics.filter(m => m.isFullyReady).length;
-
-    const totalScoredInClass = studentMetrics.reduce((acc, m) => acc + m.scoredCount, 0);
-    const totalExpectedInClass = totalStudents * totalIndicators;
-    const overallEvalProgress = totalExpectedInClass > 0 
-      ? Math.round((totalScoredInClass / totalExpectedInClass) * 100) 
-      : 0;
-
-    const overallObsProgress = totalStudents > 0 
-      ? Math.round((completedObs / totalStudents) * 100) 
+    const totalStudents = sectionMetrics.studentsCount;
+    const completedEvals = sectionMetrics.evaluatedCount;
+    const pendingEvals = sectionMetrics.pendingEvaluationCount;
+    const completedObs = sectionMetrics.observationsCompleteCount;
+    const pendingObs = sectionMetrics.observationsPendingCount;
+    const readyBulletins = sectionMetrics.readyBulletinsCount;
+    const overallEvalProgress = sectionMetrics.progressPercent;
+    const overallObsProgress = totalStudents > 0
+      ? Math.round((completedObs / totalStudents) * 100)
       : 0;
 
     return {
@@ -129,7 +84,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
       overallEvalProgress,
       overallObsProgress
     };
-  }, [studentMetrics, totalIndicators]);
+  }, [sectionMetrics]);
 
   // Filtered list
   const filteredStudents = useMemo(() => {
@@ -178,7 +133,11 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               </span>
               <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full border border-white/10">
                 <BookOpen className="w-3.5 h-3.5 text-amber-300" />
-                <strong>{totalIndicators}</strong> Indicadores de Logro Oficiales
+                {sectionMetrics.hasStartedSection && workedIndicatorsCount < totalIndicators ? (
+                  <><strong>{workedIndicatorsCount}</strong> de {totalIndicators} Indicadores Trabajados ({currentPeriod})</>
+                ) : (
+                  <><strong>{totalIndicators}</strong> Indicadores de Logro Oficiales</>
+                )}
               </span>
               <span className="flex items-center gap-1.5 bg-emerald-500/20 text-emerald-200 px-3 py-1 rounded-full border border-emerald-400/30 font-medium">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
@@ -203,6 +162,15 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               <MessageSquare className="w-4 h-4 text-amber-300" />
               Redactar Observaciones
             </button>
+            {onNavigateToReports && (
+              <button
+                onClick={onNavigateToReports}
+                className="px-5 py-2.5 rounded-xl bg-teal-600/90 hover:bg-teal-500 text-white font-bold text-xs sm:text-sm border border-teal-400/40 flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
+              >
+                <BarChart3 className="w-4 h-4 text-teal-100" />
+                Reporte Analítico ({currentPeriod})
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -243,7 +211,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                   </>
                 ) : (
                   <>
-                    Todos tus <strong>{stats.totalStudents} estudiantes</strong> tienen sus {totalIndicators} indicadores evaluados y sus observaciones cualitativas completas. Los boletines están listos para firma y entrega a los padres.
+                    Todos tus <strong>{stats.totalStudents} estudiantes</strong> tienen sus indicadores trabajados en {currentPeriod} evaluados y sus observaciones cualitativas completas. Los boletines están listos para firma y entrega a los padres.
                   </>
                 )}
               </p>
@@ -547,7 +515,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                       <div className="w-36">
                         <div className="flex items-center justify-between text-[11px] mb-1">
                           <span className="font-bold text-slate-700">
-                            {item.scoredCount} / {item.totalIndicators} ind.
+                            {item.scoredCount} / {item.expectedIndicators} ind.
                           </span>
                           <span className={`font-bold ${item.isEvaluationComplete ? 'text-emerald-700' : 'text-amber-700'}`}>
                             {item.evalPercentage}%

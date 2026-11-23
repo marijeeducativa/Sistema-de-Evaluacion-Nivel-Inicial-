@@ -38,6 +38,7 @@ import {
   generateSuggestedObservationDraft,
   EvaluatedPhraseMatch
 } from '../utils/pedagogicalPhraseMatcher';
+import { computeSectionPeriodMetrics } from '../utils/evaluationProgress';
 
 interface EvaluationMatrixProps {
   state: AppState;
@@ -165,26 +166,42 @@ export const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({
     return state.evaluations[currentStudent.id] || null;
   }, [state.evaluations, currentStudent]);
 
-  // Progress metrics for this student across P1, P2, P3
+  // Progress metrics for this student across P1, P2, P3 (aligned with period-worked indicators)
   const studentProgress = useMemo(() => {
-    if (!currentStudentEvals) return { P1: 0, P2: 0, P3: 0, totalIndicators: indicators.length };
+    if (!currentStudent) {
+      return {
+        P1: 0, P2: 0, P3: 0,
+        P1Scored: 0, P2Scored: 0, P3Scored: 0,
+        P1Expected: indicators.length, P2Expected: indicators.length, P3Expected: indicators.length,
+        P1Complete: false, P2Complete: false, P3Complete: false,
+        totalIndicators: indicators.length
+      };
+    }
 
-    const calcProgress = (period: EvaluationPeriod) => {
-      const scores = currentStudentEvals[period]?.scores || {};
-      let filled = 0;
-      indicators.forEach(ind => {
-        if (scores[ind.id]) filled++;
-      });
-      return indicators.length > 0 ? Math.round((filled / indicators.length) * 100) : 0;
-    };
+    const p1Metrics = computeSectionPeriodMetrics(sectionStudents, state.evaluations, selectedGrade, 'P1');
+    const p2Metrics = computeSectionPeriodMetrics(sectionStudents, state.evaluations, selectedGrade, 'P2');
+    const p3Metrics = computeSectionPeriodMetrics(sectionStudents, state.evaluations, selectedGrade, 'P3');
+
+    const m1 = p1Metrics.studentMetrics.find(m => m.student.id === currentStudent.id);
+    const m2 = p2Metrics.studentMetrics.find(m => m.student.id === currentStudent.id);
+    const m3 = p3Metrics.studentMetrics.find(m => m.student.id === currentStudent.id);
 
     return {
-      P1: calcProgress('P1'),
-      P2: calcProgress('P2'),
-      P3: calcProgress('P3'),
+      P1: m1?.evalPercentage || 0,
+      P2: m2?.evalPercentage || 0,
+      P3: m3?.evalPercentage || 0,
+      P1Scored: m1?.scoredCount || 0,
+      P2Scored: m2?.scoredCount || 0,
+      P3Scored: m3?.scoredCount || 0,
+      P1Expected: p1Metrics.workedIndicatorsCount,
+      P2Expected: p2Metrics.workedIndicatorsCount,
+      P3Expected: p3Metrics.workedIndicatorsCount,
+      P1Complete: !!m1?.isEvaluationComplete,
+      P2Complete: !!m2?.isEvaluationComplete,
+      P3Complete: !!m3?.isEvaluationComplete,
       totalIndicators: indicators.length
     };
-  }, [currentStudentEvals, indicators]);
+  }, [currentStudent, sectionStudents, state.evaluations, selectedGrade, indicators.length]);
 
   // Navigation handlers
   const handlePrevStudent = () => {
@@ -438,11 +455,16 @@ export const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="font-bold text-slate-700">1er. Período (P1 - Nov)</span>
-              <span className="font-black text-slate-900 tabular-nums">{studentProgress.P1}%</span>
+              <span className="font-black text-slate-900 tabular-nums">
+                {studentProgress.P1}%
+                <span className="ml-1.5 text-[10px] font-semibold text-slate-500">
+                  ({studentProgress.P1Scored}/{studentProgress.P1Expected})
+                </span>
+              </span>
             </div>
             <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
               <div 
-                className={`h-1.5 rounded-full ${studentProgress.P1 === 100 ? 'bg-emerald-500' : 'bg-blue-600'}`} 
+                className={`h-1.5 rounded-full ${studentProgress.P1 === 100 || studentProgress.P1Complete ? 'bg-emerald-500' : 'bg-blue-600'}`} 
                 style={{ width: `${studentProgress.P1}%` }}
               />
             </div>
@@ -451,11 +473,16 @@ export const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="font-bold text-slate-700">2do. Período (P2 - Mar)</span>
-              <span className="font-black text-slate-900 tabular-nums">{studentProgress.P2}%</span>
+              <span className="font-black text-slate-900 tabular-nums">
+                {studentProgress.P2}%
+                <span className="ml-1.5 text-[10px] font-semibold text-slate-500">
+                  ({studentProgress.P2Scored}/{studentProgress.P2Expected})
+                </span>
+              </span>
             </div>
             <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
               <div 
-                className={`h-1.5 rounded-full ${studentProgress.P2 === 100 ? 'bg-emerald-500' : 'bg-blue-600'}`} 
+                className={`h-1.5 rounded-full ${studentProgress.P2 === 100 || studentProgress.P2Complete ? 'bg-emerald-500' : 'bg-blue-600'}`} 
                 style={{ width: `${studentProgress.P2}%` }}
               />
             </div>
@@ -464,11 +491,16 @@ export const EvaluationMatrix: React.FC<EvaluationMatrixProps> = ({
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="font-bold text-slate-700">3er. Período (P3 - Jun)</span>
-              <span className="font-black text-slate-900 tabular-nums">{studentProgress.P3}%</span>
+              <span className="font-black text-slate-900 tabular-nums">
+                {studentProgress.P3}%
+                <span className="ml-1.5 text-[10px] font-semibold text-slate-500">
+                  ({studentProgress.P3Scored}/{studentProgress.P3Expected})
+                </span>
+              </span>
             </div>
             <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
               <div 
-                className={`h-1.5 rounded-full ${studentProgress.P3 === 100 ? 'bg-emerald-500' : 'bg-blue-600'}`} 
+                className={`h-1.5 rounded-full ${studentProgress.P3 === 100 || studentProgress.P3Complete ? 'bg-emerald-500' : 'bg-blue-600'}`} 
                 style={{ width: `${studentProgress.P3}%` }}
               />
             </div>

@@ -5,7 +5,7 @@ import {
   EvaluationPeriod, 
   Teacher 
 } from '../types';
-import { getIndicatorsByGrade } from '../data/minerdCurriculum';
+import { computeSectionPeriodMetrics } from '../utils/evaluationProgress';
 import { 
   Search, 
   ArrowRight, 
@@ -51,44 +51,12 @@ export const SectionPortalLanding: React.FC<SectionPortalLandingProps> = ({
     const sectionOrder = ['A', 'B', 'C'];
 
     gradeOrder.forEach(grade => {
-      const indicators = getIndicatorsByGrade(grade);
-      const totalIndicators = indicators.length;
-
       sectionOrder.forEach(sec => {
         const students = state.students.filter(s => s.grade === grade && s.section === sec);
         if (students.length === 0) return;
 
         const teacher = state.teachers.find(t => t.grade === grade && t.section === sec);
-
-        // Count evaluations
-        let fullyEvaluatedStudents = 0;
-        let totalExpectedEvals = students.length * totalIndicators;
-        let filledEvals = 0;
-
-        students.forEach(st => {
-          const evalRec = state.evaluations[st.id]?.[currentPeriod];
-          if (!evalRec) return;
-          const scores = evalRec.scores || {};
-
-          let studentFilled = 0;
-          indicators.forEach(ind => {
-            if (scores[ind.id]) {
-              filledEvals++;
-              studentFilled++;
-            }
-          });
-
-          // Check if student has all indicators evaluated
-          if (studentFilled === totalIndicators && evalRec.observations.strengths.trim() && evalRec.observations.recommendations.trim()) {
-            fullyEvaluatedStudents++;
-          }
-        });
-
-        const progressPercent = totalExpectedEvals > 0 
-          ? Math.round((filledEvals / totalExpectedEvals) * 100) 
-          : 0;
-
-        const pendingStudents = students.length - fullyEvaluatedStudents;
+        const metrics = computeSectionPeriodMetrics(students, state.evaluations, grade, currentPeriod);
 
         result.push({
           grade,
@@ -96,11 +64,16 @@ export const SectionPortalLanding: React.FC<SectionPortalLandingProps> = ({
           teacher,
           teacherName: teacher?.name || 'Docente Titular Asignada',
           studentsCount: students.length,
-          evaluatedCount: fullyEvaluatedStudents,
-          pendingStudents,
-          progressPercent,
-          totalIndicators,
-          isComplete: pendingStudents === 0 && students.length > 0
+          evaluatedCount: metrics.readyBulletinsCount,
+          evaluatedIndicatorsCount: metrics.evaluatedCount,
+          pendingStudents: metrics.pendingBulletinsCount,
+          pendingIndicatorsCount: metrics.pendingEvaluationCount,
+          pendingObservationsCount: metrics.observationsPendingCount,
+          progressPercent: metrics.progressPercent,
+          totalIndicators: metrics.totalCurriculumIndicators,
+          workedIndicatorsCount: metrics.workedIndicatorsCount,
+          hasStartedSection: metrics.hasStartedSection,
+          isComplete: metrics.pendingBulletinsCount === 0 && students.length > 0
         });
       });
     });
@@ -207,7 +180,12 @@ export const SectionPortalLanding: React.FC<SectionPortalLandingProps> = ({
 
                   <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
                     <span>{item.evaluatedCount} de {item.studentsCount} completados</span>
-                    <span className="font-medium text-slate-700">{item.studentsCount} estudiantes</span>
+                    <span className="font-medium text-slate-700">
+                      {item.hasStartedSection && item.workedIndicatorsCount < item.totalIndicators
+                        ? `${item.workedIndicatorsCount}/${item.totalIndicators} ind. · `
+                        : ''}
+                      {item.studentsCount} estudiantes
+                    </span>
                   </div>
                 </div>
 
@@ -222,7 +200,23 @@ export const SectionPortalLanding: React.FC<SectionPortalLandingProps> = ({
                     <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-50 text-amber-900 border border-amber-200 text-xs font-medium">
                       <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
                       <span>
-                        Faltan <strong>{item.pendingStudents} estudiantes</strong> por completar indicadores.
+                        {item.pendingIndicatorsCount === 0 && item.pendingObservationsCount > 0 ? (
+                          <>
+                            Indicadores al día. Faltan <strong>{item.pendingObservationsCount} estudiantes</strong> por observaciones.
+                          </>
+                        ) : item.pendingIndicatorsCount > 0 && item.pendingObservationsCount === 0 ? (
+                          <>
+                            Faltan <strong>{item.pendingIndicatorsCount} estudiantes</strong> por completar indicadores.
+                          </>
+                        ) : item.pendingIndicatorsCount === item.pendingObservationsCount ? (
+                          <>
+                            Faltan <strong>{item.pendingIndicatorsCount} estudiantes</strong> por completar indicadores y observaciones.
+                          </>
+                        ) : (
+                          <>
+                            Faltan <strong>{item.pendingIndicatorsCount}</strong> por indicadores y <strong>{item.pendingObservationsCount}</strong> por observaciones.
+                          </>
+                        )}
                       </span>
                     </div>
                   )}

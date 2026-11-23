@@ -5,6 +5,7 @@ import {
   AppState, 
   AppUser 
 } from '../types';
+import { computeSectionPeriodMetrics } from '../utils/evaluationProgress';
 import { 
   Building2, 
   Database, 
@@ -39,8 +40,8 @@ import {
 interface HeaderProps {
   state: AppState;
   currentUser: AppUser;
-  activeTab: 'portal' | 'matrix' | 'observations' | 'bulletin' | 'dashboard' | 'students' | 'teacher-dashboard';
-  setActiveTab: (tab: 'portal' | 'matrix' | 'observations' | 'bulletin' | 'dashboard' | 'students' | 'teacher-dashboard') => void;
+  activeTab: 'portal' | 'matrix' | 'observations' | 'bulletin' | 'dashboard' | 'students' | 'teacher-dashboard' | 'reports';
+  setActiveTab: (tab: 'portal' | 'matrix' | 'observations' | 'bulletin' | 'dashboard' | 'students' | 'teacher-dashboard' | 'reports') => void;
   onGradeChange: (grade: GradeLevel) => void;
   onSectionChange: (section: string) => void;
   onPeriodChange: (period: EvaluationPeriod) => void;
@@ -88,17 +89,25 @@ export const Header: React.FC<HeaderProps> = ({
   const isCoordinadora = currentUser.role === 'coordinadora';
   const isAdmin = currentUser.role === 'administrador';
 
-  // Calculate pending evaluations for this scope
+  // Calculate pending evaluations for this scope using unified period metrics
   const totalPendingEvals = useMemo(() => {
-    let pending = 0;
     const targetStudents = isDocente
       ? state.students.filter(s => s.grade === currentUser.grade && s.section === currentUser.section)
       : state.students;
 
+    const groups = new Map<string, typeof targetStudents>();
     targetStudents.forEach(st => {
-      const evalRec = state.evaluations[st.id]?.[currentPeriod];
-      const hasScores = evalRec && Object.values(evalRec.scores).some(v => v !== '');
-      if (!hasScores) pending++;
+      const key = `${st.grade}|||${st.section}`;
+      const list = groups.get(key) || [];
+      list.push(st);
+      groups.set(key, list);
+    });
+
+    let pending = 0;
+    groups.forEach((students, key) => {
+      const [grade] = key.split('|||') as [GradeLevel, string];
+      const metrics = computeSectionPeriodMetrics(students, state.evaluations, grade, currentPeriod);
+      pending += metrics.pendingEvaluationCount;
     });
     return pending;
   }, [state.students, state.evaluations, currentPeriod, isDocente, currentUser]);
@@ -435,6 +444,19 @@ export const Header: React.FC<HeaderProps> = ({
                   <FileText className="w-4 h-4" />
                   <span>Boletines Oficiales (PDF)</span>
                 </button>
+
+                {/* Analytical Section Report */}
+                <button
+                  onClick={() => setActiveTab('reports')}
+                  className={`px-3.5 py-2 border-b-2 flex items-center gap-2 transition-all ${
+                    activeTab === 'reports'
+                      ? 'border-blue-600 text-blue-700 bg-white font-bold rounded-t-lg'
+                      : 'border-transparent text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4 text-teal-600" />
+                  <span>Reporte Analítico</span>
+                </button>
               </>
             ) : (
               // COORDINADORA & ADMINISTRADOR TABS
@@ -518,6 +540,19 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <Users className="w-4 h-4" />
                   <span>Listado de Estudiantes ({state.students.length})</span>
+                </button>
+
+                {/* Reportes Analíticos (General + Sección) */}
+                <button
+                  onClick={() => setActiveTab('reports')}
+                  className={`px-3.5 py-2 border-b-2 flex items-center gap-2 transition-all ${
+                    activeTab === 'reports'
+                      ? 'border-blue-600 text-blue-700 bg-white font-bold rounded-t-lg'
+                      : 'border-transparent text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <BarChart3 className="w-4 h-4 text-teal-600" />
+                  <span>Reportes Analíticos</span>
                 </button>
               </>
             )}

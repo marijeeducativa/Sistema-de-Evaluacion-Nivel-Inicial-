@@ -45,6 +45,7 @@ import { TeacherDashboard } from './components/TeacherDashboard';
 import { UserProfileModal } from './components/UserProfileModal';
 import { UserManagerModal } from './components/UserManagerModal';
 import { BulkObservationsModal } from './components/BulkObservationsModal';
+import { AnalyticalReportsView } from './components/AnalyticalReportsView';
 import { getIndicatorsByGrade } from './data/minerdCurriculum';
 
 export default function App() {
@@ -67,9 +68,10 @@ export default function App() {
     return null;
   });
 
-  const [activeTab, setActiveTab] = useState<'portal' | 'matrix' | 'observations' | 'bulletin' | 'dashboard' | 'students' | 'teacher-dashboard'>(() => {
+  const [activeTab, setActiveTab] = useState<'portal' | 'matrix' | 'observations' | 'bulletin' | 'dashboard' | 'students' | 'teacher-dashboard' | 'reports'>(() => {
     return 'dashboard';
   });
+  const [reportInitialMode, setReportInitialMode] = useState<'section' | 'general'>('general');
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isStudentManagerOpen, setIsStudentManagerOpen] = useState(false);
@@ -947,6 +949,10 @@ export default function App() {
               if (id) setTargetStudentForDetails(id);
               setActiveTab('bulletin');
             }}
+            onNavigateToReports={() => {
+              setReportInitialMode('section');
+              setActiveTab('reports');
+            }}
             onExportExcel={() => {
               const grade = currentUser.grade || state.selectedGrade;
               const section = currentUser.section || state.selectedSection;
@@ -1045,6 +1051,22 @@ export default function App() {
             onNavigateToMatrix={() => setActiveTab('matrix')}
             onNavigateToObservations={() => setActiveTab('observations')}
             onNavigateToBulletin={() => setActiveTab('bulletin')}
+            onNavigateToReports={(mode) => {
+              setReportInitialMode(mode || 'general');
+              setActiveTab('reports');
+            }}
+          />
+        )}
+
+        {/* Analytical End-of-Period Reports (Section & General Nivel Inicial) */}
+        {activeTab === 'reports' && (
+          <AnalyticalReportsView
+            state={state}
+            currentUser={currentUser}
+            initialMode={reportInitialMode}
+            onGradeChange={handleGradeChange}
+            onSectionChange={handleSectionChange}
+            onPeriodChange={handlePeriodChange}
           />
         )}
 

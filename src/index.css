@@ -270,7 +270,7 @@
 @media print {
   @page {
     size: 11in 8.5in landscape;
-    margin: 0mm !important;
+    margin: 0 !important;
   }
 
   *, *:before, *:after {
@@ -288,11 +288,16 @@
     overflow: visible !important;
   }
 
+  /* Ocultar elementos de navegación y badges externos inyectados (como Netlify) */
+  .no-print, header, nav, footer, [id*="netlify"], [class*="netlify"], .netlify-badge, iframe {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
   /* Eliminación estricta de márgenes y paddings de contenedores padres para evitar páginas en blanco */
   main,
   div:has(> .report-card-viewport),
-  .report-card-viewport,
-  .report-card-print-container {
+  .report-card-viewport {
     margin: 0 !important;
     padding: 0 !important;
     max-width: none !important;
@@ -300,30 +305,373 @@
     display: block !important;
   }
 
-  .no-print, header, nav, footer {
-    display: none !important;
-  }
-
-  .sheet {
-    box-shadow: none !important;
+  .report-card-print-container {
     margin: 0 !important;
-    padding: 0.3in 0.35in !important;
+    padding: 0 !important;
     width: 11in !important;
-    height: 8.5in !important;
-    min-height: 8.5in !important;
-    max-height: 8.5in !important;
-    box-sizing: border-box !important;
-    overflow: hidden !important;
+    display: block !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+  }
+
+  /* Salto de página entre estudiantes en modo paquete */
+  .report-card-print-container:not(:last-child) {
     page-break-after: page !important;
     break-after: page !important;
   }
 
-  /* Evitar página en blanco al final del documento */
-  .report-card-print-container:last-child .sheet:last-child,
+  .report-card-print-container:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Hoja del boletín: altura de 8.2in con padding compacto para absorber márgenes de hardware sin desbordar */
+  .sheet {
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0.22in 0.35in !important;
+    width: 11in !important;
+    max-width: 11in !important;
+    height: 8.2in !important;
+    min-height: 8.2in !important;
+    max-height: 8.2in !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important; /* Detiene estrictamente cualquier desborde de 1px a otra página */
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Hoja 1 (Exterior): Salto forzado hacia Hoja 2 (Interior) */
+  .sheet:first-child {
+    page-break-after: page !important;
+    break-after: page !important;
+  }
+
+  /* Hoja 2 (Interior): NUNCA debe saltar a otra página para no generar páginas en blanco */
   .sheet:last-child {
     page-break-after: avoid !important;
     break-after: avoid !important;
   }
 }
+
+/* ========================================================= */
+/* REPORTES ANALÍTICOS FORMATO CARTA PORTRAIT (8.5 x 11 IN)  */
+/* Colores HEX puros para compatibilidad total html2canvas   */
+/* ========================================================= */
+
+.letter-report-viewport {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.letter-report-page {
+  width: 8.5in;
+  min-width: 8.5in;
+  max-width: 8.5in;
+  height: 11in;
+  min-height: 11in;
+  max-height: 11in;
+  padding: 0.38in 0.44in;
+  background-color: #ffffff;
+  color: #0f172a;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+  position: relative;
+}
+
+.lr-page-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.lr-header {
+  border-bottom: 2px solid #0b1b3d;
+  padding-bottom: 7px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.lr-header-kicker {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #475569;
+  margin: 0 0 2px 0;
+}
+
+.lr-header-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0b1b3d;
+  margin: 0;
+  line-height: 1.15;
+}
+
+.lr-header-sub {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #334155;
+  margin: 2px 0 0 0;
+}
+
+.lr-header-right {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.lr-header-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 800;
+  color: #0b1b3d;
+  background-color: #e2e8f0;
+  border: 1px solid #cbd5e1;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.lr-header-meta {
+  font-size: 8.5px;
+  color: #475569;
+  margin-top: 3px;
+}
+
+.lr-footer {
+  border-top: 1px solid #cbd5e1;
+  padding-top: 6px;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 8.5px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.lr-meta-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 7px 10px;
+}
+
+.lr-meta-item-label {
+  display: block;
+  font-size: 8px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.lr-meta-item-val {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lr-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.lr-kpi-card {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 7px 9px;
+}
+
+.lr-kpi-label {
+  font-size: 8.5px;
+  font-weight: 700;
+  color: #475569;
+  margin: 0 0 2px 0;
+}
+
+.lr-kpi-val {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.lr-kpi-sub {
+  font-size: 8.2px;
+  color: #64748b;
+  margin-top: 2px;
+  line-height: 1.2;
+}
+
+.lr-section-title {
+  font-size: 10px;
+  font-weight: 800;
+  color: #0b1b3d;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1.5px solid #cbd5e1;
+  padding-bottom: 3px;
+  margin: 0 0 5px 0;
+}
+
+.lr-diagnosis-box {
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 9.2px;
+  line-height: 1.38;
+  color: #1e293b;
+}
+
+.lr-baseline-note {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  padding: 6px 9px;
+  font-size: 8.7px;
+  line-height: 1.35;
+  color: #1e3a8a;
+}
+
+.lr-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 8.5px;
+  border: 1px solid #cbd5e1;
+}
+
+.lr-table th {
+  background-color: #0b1b3d;
+  color: #ffffff;
+  font-weight: 700;
+  text-align: left;
+  padding: 4.5px 5px;
+  border: 1px solid #1e293b;
+  font-size: 8px;
+  line-height: 1.15;
+}
+
+.lr-table td {
+  padding: 4px 5px;
+  border: 1px solid #e2e8f0;
+  vertical-align: middle;
+  color: #0f172a;
+  line-height: 1.22;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.lr-table tbody tr:nth-child(even) td {
+  background-color: #f8fafc;
+}
+
+.lr-num {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.lr-bar-track {
+  width: 100%;
+  height: 7px;
+  background-color: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+}
+
+.lr-badge {
+  display: inline-block;
+  font-size: 7.8px;
+  font-weight: 700;
+  padding: 1.5px 5px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.lr-badge-ok {
+  background-color: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+.lr-badge-mid {
+  background-color: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.lr-badge-high {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.lr-badge-neutral {
+  background-color: #f1f5f9;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+
+.lr-badge-info {
+  background-color: #dbeafe;
+  color: #1e40af;
+  border-color: #bfdbfe;
+}
+
+.lr-strategy-card {
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 7px 9px;
+}
+
+.lr-signatures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  padding-top: 22px;
+  text-align: center;
+}
+
+.lr-sig-line {
+  border-top: 1px solid #0f172a;
+  padding-top: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.lr-sig-role {
+  font-size: 8px;
+  color: #64748b;
+  margin-top: 1px;
+}
+

@@ -145,3 +145,120 @@ export async function downloadBatchReportCardsPDF(
   const fileName = `Boletines_Oficiales_${cleanGrade}_Sec_${section}_Completo.pdf`;
   pdf.save(fileName);
 }
+
+/**
+ * Converts any modern CSS color (oklch, oklab, color-mix) to standard hex/rgba for html2canvas 1.4.1
+ */
+function normalizeCssColorForCanvas(colorVal: string, ctx: CanvasRenderingContext2D | null): string {
+  if (!colorVal || (!colorVal.includes('oklch') && !colorVal.includes('oklab') && !colorVal.includes('color-mix'))) {
+    return colorVal;
+  }
+  if (!ctx) return '#0f172a';
+  try {
+    ctx.fillStyle = '#000000';
+    ctx.fillStyle = colorVal;
+    return ctx.fillStyle || '#0f172a';
+  } catch {
+    return '#0f172a';
+  }
+}
+
+/**
+ * Renders a Letter-portrait (8.5 x 11 in) analytical report page to canvas
+ */
+async function captureLetterPageToCanvas(pageEl: HTMLElement): Promise<HTMLCanvasElement> {
+  return await html2canvas(pageEl, {
+    scale: 2,
+    useCORS: true,
+    allowTaint: true,
+    logging: false,
+    backgroundColor: '#ffffff',
+    windowWidth: 816, // 8.5in at 96 DPI
+    windowHeight: 1056, // 11in at 96 DPI
+    onclone: (clonedDoc, clonedElement) => {
+      clonedDoc.documentElement.style.color = '#0f172a';
+      clonedDoc.documentElement.style.backgroundColor = '#ffffff';
+      clonedDoc.body.style.color = '#0f172a';
+      clonedDoc.body.style.backgroundColor = '#ffffff';
+
+      const el = clonedElement as HTMLElement;
+      el.style.width = '8.5in';
+      el.style.minWidth = '8.5in';
+      el.style.maxWidth = '8.5in';
+      el.style.height = '11in';
+      el.style.minHeight = '11in';
+      el.style.maxHeight = '11in';
+      el.style.margin = '0';
+      el.style.border = 'none';
+      el.style.boxShadow = 'none';
+      el.style.backgroundColor = '#ffffff';
+
+      const tempCanvas = clonedDoc.createElement('canvas');
+      tempCanvas.width = 1;
+      tempCanvas.height = 1;
+      const ctx = tempCanvas.getContext('2d');
+      const view = clonedDoc.defaultView;
+      if (view) {
+        const allNodes = [el, ...Array.from(el.querySelectorAll<HTMLElement>('*'))];
+        allNodes.forEach(node => {
+          const cs = view.getComputedStyle(node);
+          if (cs.color.includes('oklch') || cs.color.includes('oklab')) {
+            node.style.color = normalizeCssColorForCanvas(cs.color, ctx);
+          }
+          if (cs.backgroundColor.includes('oklch') || cs.backgroundColor.includes('oklab')) {
+            node.style.backgroundColor = normalizeCssColorForCanvas(cs.backgroundColor, ctx);
+          }
+          if (cs.borderColor.includes('oklch') || cs.borderColor.includes('oklab')) {
+            node.style.borderColor = normalizeCssColorForCanvas(cs.borderTopColor, ctx);
+          }
+          if (cs.boxShadow && (cs.boxShadow.includes('oklch') || cs.boxShadow.includes('oklab'))) {
+            node.style.boxShadow = 'none';
+          }
+        });
+      }
+    }
+  });
+}
+
+/**
+ * Generates and downloads a multi-page Letter-portrait PDF for Analytical End-of-Period Reports
+ */
+export async function downloadAnalyticalReportPDF(
+  fileNameBase: string,
+  containerElement: HTMLElement,
+  onProgress?: (progress: { current: number; total: number; label: string }) => void
+): Promise<void> {
+  const pages = containerElement.querySelectorAll<HTMLElement>('.letter-report-page');
+  if (pages.length === 0) {
+    throw new Error('No se encontraron páginas del reporte analítico para generar el PDF.');
+  }
+
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'in',
+    format: 'letter', // 8.5 x 11 inches
+    compress: true
+  });
+
+  for (let i = 0; i < pages.length; i++) {
+    onProgress?.({
+      current: i + 1,
+      total: pages.length,
+      label: `Renderizando página ${i + 1} de ${pages.length} (Formato Carta)...`
+    });
+
+    const canvas = await captureLetterPageToCanvas(pages[i]);
+    const imgData = canvas.toDataURL('image/jpeg', 0.94);
+
+    if (i > 0) {
+      pdf.addPage('letter', 'portrait');
+    }
+    pdf.addImage(imgData, 'JPEG', 0, 0, 8.5, 11, undefined, 'FAST');
+
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
+
+  const cleanFile = `${sanitizeFileName(fileNameBase)}.pdf`;
+  pdf.save(cleanFile);
+}
+
